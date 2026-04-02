@@ -983,7 +983,13 @@ void Player::onCreatureAppear(Creature* creature, bool isLogin) {
 	if (isLogin && creature == this) {
 		sendItems();
 
-		onEquipInventory();
+		for (int32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; ++slot) {
+			if (const auto item = inventory[slot]) {
+				item->startDecaying();
+				g_moveEvents->onPlayerEquip(this, item, static_cast<slots_t>(slot), false);
+				events::player::onInventoryUpdate(this, item, static_cast<slots_t>(slot), true);
+			}
+		}
 
 		for (Condition* condition : storedConditionList) {
 			addCondition(condition);
@@ -1092,7 +1098,12 @@ void Player::onRemoveCreature(Creature* creature, bool isLogout) {
 	Creature::onRemoveCreature(creature, isLogout);
 
 	if (creature == this) {
-		onDeEquipInventory();
+		for (int32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; ++slot) {
+			if (const auto item = inventory[slot]) {
+				g_moveEvents->onPlayerDeEquip(this, item, static_cast<slots_t>(slot));
+				events::player::onInventoryUpdate(this, item, static_cast<slots_t>(slot), false);
+			}
+		}
 
 		if (isLogout) {
 			loginPosition = getPosition();
@@ -1232,26 +1243,6 @@ void Player::onCreatureMove(Creature* creature, const Tile* newTile, const Posit
 	}
 }
 
-void Player::onEquipInventory() {
-	for (int32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; ++slot) {
-		Item* item = inventory[slot];
-		if (item) {
-			item->startDecaying();
-			g_moveEvents->onPlayerEquip(this, item, static_cast<slots_t>(slot), false);
-			events::player::onInventoryUpdate(this, item, static_cast<slots_t>(slot), true);
-		}
-	}
-}
-
-void Player::onDeEquipInventory() {
-	for (int32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; ++slot) {
-		Item* item = inventory[slot];
-		if (item) {
-			g_moveEvents->onPlayerDeEquip(this, item, static_cast<slots_t>(slot));
-			events::player::onInventoryUpdate(this, item, static_cast<slots_t>(slot), false);
-		}
-	}
-}
 
 //container
 void Player::onAddContainerItem(const Item* item) {
