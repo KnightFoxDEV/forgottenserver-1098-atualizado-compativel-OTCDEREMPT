@@ -156,6 +156,7 @@ enum ItemParseAttributes_t {
 	ITEM_PARSE_ALLOWDISTREAD,
 	ITEM_PARSE_STOREITEM,
 	ITEM_PARSE_WORTH,
+	ITEM_PARSE_SHADER,
 };
 
 struct Abilities {
@@ -373,6 +374,7 @@ class ItemType {
 		bool lookThrough = false;
 		bool stopTime = false;
 		bool showCount = true;
+		std::string shader;
 };
 
 class Items {

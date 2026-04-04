@@ -1058,11 +1058,14 @@ class Item : virtual public Thing {
 			setCustomAttribute(key, val);
 		}
 
-		bool hasShader() const { return const_cast<Item*>(this)->getCustomAttribute("shader") != nullptr; }
+		bool hasShader() const { return const_cast<Item*>(this)->getCustomAttribute("shader") != nullptr || !items[id].shader.empty(); }
 		std::string getShader() const
 		{
 			auto shader = const_cast<Item*>(this)->getCustomAttribute("shader");
-			return shader ? shader->getString() : "";
+			if (shader) {
+				return shader->getString();
+			}
+			return items[id].shader;
 		}
 
 	protected:

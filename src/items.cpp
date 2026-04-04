@@ -136,6 +136,7 @@ namespace {
 		{"allowdistread", ITEM_PARSE_ALLOWDISTREAD},
 		{"storeitem", ITEM_PARSE_STOREITEM},
 		{"worth", ITEM_PARSE_WORTH},
+		{"shader", ITEM_PARSE_SHADER},
 	};
 
 	const std::unordered_map<std::string, ItemTypes_t> ItemTypesMap = {
@@ -1149,6 +1150,11 @@ void Items::parseItemNode(const pugi::xml_node& itemNode, uint16_t id) {
 					if (valueAttribute.as_bool()) {
 						abilities.conditionSuppressions |= CONDITION_ENERGY;
 					}
+					break;
+				}
+
+				case ITEM_PARSE_SHADER: {
+					it.shader = valueAttribute.as_string();
 					break;
 				}
 
