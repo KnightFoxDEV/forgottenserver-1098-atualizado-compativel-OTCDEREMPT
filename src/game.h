@@ -6,6 +6,12 @@
 
 #include "groups.h"
 #include "map.h"
+//lone effects
+#include "wings.h"
+#include "auras.h"
+#include "effects.h"
+#include "shaders.h"
+
 #include "mounts.h"
 #include "player.h"
 #include "position.h"
@@ -440,6 +446,12 @@ class Game {
 		void addDistanceEffect(const Position& fromPos, const Position& toPos, uint8_t effect);
 		static void addDistanceEffect(const SpectatorVec& spectators, const Position& fromPos, const Position& toPos, uint8_t effect);
 
+		//lone effects
+		void sendAttachedEffect(const Creature* creature, uint16_t effectId);
+		void sendDetachEffect(const Creature* creature, uint16_t effectId);
+		void updateCreatureShader(const Creature* creature);
+		void refreshItem(const Item* item);
+
 		void setAccountStorageValue(const uint32_t accountId, const uint32_t key, const int32_t value);
 		int32_t getAccountStorageValue(const uint32_t accountId, const uint32_t key) const;
 		void loadAccountStorageValues();
@@ -494,6 +506,12 @@ class Game {
 		Map map;
 		Mounts mounts;
 		Quests quests;
+
+		//lone effects
+		Wings wings;
+		Auras auras;
+		Effects effects;
+		Shaders shaders;
 
 		std::forward_list<Item*> toDecayItems;
 

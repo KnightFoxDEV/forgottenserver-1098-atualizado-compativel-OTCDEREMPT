@@ -361,6 +361,11 @@ void ProtocolGame::onRecvFirstMessage(NetworkMessage& msg) {
 		return;
 	}
 
+	//lone effects
+	if (operatingSystem == CLIENTOS_OTCLIENT_WINDOWS) {
+		isMehah = true;
+	}
+
 	if (version < CLIENT_VERSION_MIN || version > CLIENT_VERSION_MAX) {
 		disconnectClient(fmt::format("Only clients with protocol {:s} allowed!", CLIENT_VERSION_STR));
 		return;
@@ -811,6 +816,17 @@ void ProtocolGame::parseSetOutfit(NetworkMessage& msg) {
 	newOutfit.lookFeet = msg.getByte();
 	newOutfit.lookAddons = msg.getByte();
 	newOutfit.lookMount = msg.get<uint16_t>();
+	//lone effects
+	newOutfit.lookWing = isMehah ? msg.get<uint16_t>() : 0;
+	newOutfit.lookAura = isMehah ? msg.get<uint16_t>() : 0;
+	newOutfit.lookEffect = isMehah ? msg.get<uint16_t>() : 0;
+
+	std::string_view shaderName = isMehah ? msg.getString() : "";
+	Shader* shader = nullptr;
+	if (!shaderName.empty()) {
+		shader = g_game.shaders.getShaderByName(shaderName);
+		newOutfit.lookShader = shader ? shader->id : 0;
+	}
 	g_dispatcher.addTask([=, playerID = player->getID()]() {
 		g_game.playerChangeOutfit(playerID, newOutfit);
 	});
@@ -2752,6 +2768,26 @@ void ProtocolGame::sendOutfitWindow() {
 		currentOutfit.lookMount = currentMount->clientId;
 	}
 
+	//lone effects
+	Wing* currentWing = g_game.wings.getWingByID(player->getCurrentWing());
+	if (currentWing) {
+		currentOutfit.lookWing = currentWing->id;
+	}
+	// @ -- auras
+	Aura* currentAura = g_game.auras.getAuraByID(player->getCurrentAura());
+	if (currentAura) {
+		currentOutfit.lookAura = currentAura->id;
+	}
+	// @ -- effects
+	Effect* currentEffect = g_game.effects.getEffectByID(player->getCurrentEffect());
+	if (currentEffect) {
+		currentOutfit.lookEffect = currentEffect->id;
+	}
+	Shader* currentShader = g_game.shaders.getShaderByID(player->getCurrentShader());
+	if (currentShader) {
+		currentOutfit.lookShader = currentShader->id;
+	}
+
 	AddOutfit(msg, currentOutfit);
 
 	std::vector<ProtocolOutfit> protocolOutfits;
@@ -2789,6 +2825,64 @@ void ProtocolGame::sendOutfitWindow() {
 	for (const Mount* mount : mounts) {
 		msg.add<uint16_t>(mount->clientId);
 		msg.addString(mount->name);
+	}
+
+	//lone effects
+	if (isMehah) {
+		// wings
+		std::vector<const Wing*> wings;
+		for (const Wing& wing : g_game.wings.getWings()) {
+			if (player->hasWing(&wing)) {
+				wings.push_back(&wing);
+			}
+		}
+
+		msg.addByte(wings.size());
+		for (const Wing* wing : wings) {
+			msg.add<uint16_t>(wing->id);
+			msg.addString(wing->name);
+		}
+
+		// auras
+		std::vector<const Aura*> auras;
+		for (const Aura& aura : g_game.auras.getAuras()) {
+			if (player->hasAura(&aura)) {
+				auras.push_back(&aura);
+			}
+		}
+
+		msg.addByte(auras.size());
+		for (const Aura* aura : auras) {
+			msg.add<uint16_t>(aura->id);
+			msg.addString(aura->name);
+		}
+
+		// effects
+		std::vector<const Effect*> effects;
+		for (const Effect& effect : g_game.effects.getEffects()) {
+			if (player->hasEffect(&effect)) {
+				effects.push_back(&effect);
+			}
+		}
+
+		msg.addByte(effects.size());
+		for (const Effect* effect : effects) {
+			msg.add<uint16_t>(effect->id);
+			msg.addString(effect->name);
+		}
+		// shader
+		std::vector<const Shader*> shaders;
+		for (const Shader& shader : g_game.shaders.getShaders()) {
+			if (player->hasShader(&shader)) {
+				shaders.push_back(&shader);
+			}
+		}
+
+		msg.addByte(shaders.size());
+		for (const Shader* shader : shaders) {
+			msg.add<uint16_t>(shader->id);
+			msg.addString(shader->name);
+		}
 	}
 
 	writeToOutputBuffer(msg);
@@ -2970,6 +3064,12 @@ void ProtocolGame::AddCreature(NetworkMessage& msg, const Creature* creature, bo
 	}
 
 	msg.addByte(player->canWalkthroughEx(creature) ? 0x00 : 0x01);
+	//lone effects
+	if (isMehah) {
+		msg.addString(creature->getShader());
+		msg.addByte(static_cast<uint8_t>(creature->getAttachedEffectList().size()));
+		for (const uint16_t id : creature->getAttachedEffectList()) msg.add<uint16_t>(id);
+	}
 }
 
 void ProtocolGame::AddPlayerStats(NetworkMessage& msg) {
@@ -3043,6 +3143,16 @@ void ProtocolGame::AddOutfit(NetworkMessage& msg, const Outfit_t& outfit) {
 	}
 
 	msg.add<uint16_t>(outfit.lookMount);
+
+	//lone effects
+	if (isMehah) {
+		msg.add<uint16_t>(outfit.lookWing);
+		msg.add<uint16_t>(outfit.lookAura);
+		msg.add<uint16_t>(outfit.lookEffect);
+
+		Shader* shader = g_game.shaders.getShaderByID(outfit.lookShader);
+		msg.addString(shader ? shader->name : "");
+	}
 }
 
 void ProtocolGame::AddWorldLight(NetworkMessage& msg, LightInfo lightInfo) {
@@ -3189,4 +3299,50 @@ void ProtocolGame::parseExtendedOpcode(NetworkMessage& msg) {
 	g_dispatcher.addTask([=, playerID = player->getID(), buffer = std::string{buffer}]() {
 		g_game.parsePlayerExtendedOpcode(playerID, opcode, buffer);
 	});
+}
+
+//lone effects
+void ProtocolGame::sendAttachedEffect(const Creature* creature, uint16_t effectId)
+{
+	if (!isMehah) return;
+		NetworkMessage playermsg;
+		playermsg.reset();
+		playermsg.addByte(0x34);
+		playermsg.add<uint32_t>(creature->getID());
+		playermsg.add<uint16_t>(effectId);
+		writeToOutputBuffer(playermsg);
+}
+
+void ProtocolGame::sendDetachEffect(const Creature* creature, uint16_t effectId)
+{
+	if (!isMehah) return;
+
+	NetworkMessage playermsg;
+	playermsg.reset();
+	playermsg.addByte(0x35);
+	playermsg.add<uint32_t>(creature->getID());
+	playermsg.add<uint16_t>(effectId);
+	writeToOutputBuffer(playermsg);
+}
+void ProtocolGame::sendShader(const Creature* creature, const std::string& shaderName)
+{
+	if (!isMehah) return;
+
+	NetworkMessage playermsg;
+	playermsg.reset();
+	playermsg.addByte(0x36);
+	playermsg.add<uint32_t>(creature->getID());
+	playermsg.addString(shaderName);
+	writeToOutputBuffer(playermsg);
+}
+
+void ProtocolGame::sendMapShader(const std::string& shaderName)
+{
+	if (!isMehah) return;
+
+	NetworkMessage playermsg;
+	playermsg.reset();
+	playermsg.addByte(0x37);
+	playermsg.addString(shaderName);
+	writeToOutputBuffer(playermsg);
 }

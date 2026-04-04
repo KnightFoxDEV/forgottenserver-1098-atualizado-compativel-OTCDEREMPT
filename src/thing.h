@@ -67,6 +67,9 @@ class Thing {
 		virtual Creature* getCreature() {
 			return nullptr;
 		}
+		virtual Container* getContainer() {
+			return nullptr;
+		}
 		virtual const Creature* getCreature() const {
 			return nullptr;
 		}

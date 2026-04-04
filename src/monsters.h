@@ -108,6 +108,12 @@ class MonsterType {
 		LightInfo light = {};
 		uint16_t lookcorpse = 0;
 
+		//lone effects
+		uint16_t rayosEffect = 0;
+		uint16_t wignsEffect = 0;
+		std::string shaderEffect = "";
+		uint16_t auraEffect = 0;
+
 		uint64_t experience = 0;
 
 		uint32_t manaCost = 0;

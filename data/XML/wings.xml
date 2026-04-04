@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wings>
+	<wing id="2" name="1 wings" speed="20" />
+	<wing id="11" name="11 wings" speed="20" /> 
+	<wing id="21" name="21 wings" speed="20" />
+</wings>
